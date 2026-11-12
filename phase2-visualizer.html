@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phase 2 – Event Queue Visualizer</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 40px auto; padding: 0 20px; background: #0f172a; color: #e2e8f0; }
+    h1 { color: #38bdf8; }
+    .controls { margin: 20px 0; }
+    button { background: #0284c7; color: white; border: none; padding: 10px 16px; margin-right: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #0369a1; }
+    .stats { display: flex; gap: 20px; margin-bottom: 20px; }
+    .stat-box { background: #1e293b; padding: 16px; border-radius: 8px; flex: 1; }
+    .queue { background: #1e293b; border-radius: 8px; padding: 16px; max-height: 520px; overflow-y: auto; }
+    .event { background: #334155; margin: 8px 0; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px; display: flex; justify-content: space-between; }
+    .offset { color: #f472b6; font-weight: bold; }
+    .currency { color: #4ade80; font-weight: bold; }
+    .amount { color: #fbbf24; }
+    .meta { color: #94a3b8; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1>Phase 2: Event Queue Visualizer</h1>
+  <p>Transfer Service now <strong>publishes</strong> events into an in-memory queue (Kafka stand-in). Nothing is consuming them yet.</p>
+
+  <div class="controls">
+    <button onclick="generateOne()">Publish 1 Event</button>
+    <button onclick="generateBatch(5)">Publish 5</button>
+    <button onclick="generateBatch(20)">Publish 20</button>
+    <button onclick="refresh()">Refresh Queue</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat-box"><strong>Queue size:</strong> <span id="size">0</span></div>
+    <div class="stat-box"><strong>Topic:</strong> transfer-events</div>
+  </div>
+
+  <div class="queue" id="queue">
+    <div style="color:#64748b;">Queue is empty. Publish some events.</div>
+  </div>
+
+  <script>
+    async function generateOne() {
+      await fetch('/transfers', { method: 'POST' });
+      refresh();
+    }
+
+    async function generateBatch(n) {
+      await fetch(`/transfers/batch?count=${n}`, { method: 'POST' });
+      refresh();
+    }
+
+    async function refresh() {
+      const res = await fetch('/queue');
+      const data = await res.json();
+      document.getElementById('size').textContent = data.size;
+
+      const el = document.getElementById('queue');
+      if (data.events.length === 0) {
+        el.innerHTML = '<div style="color:#64748b;">Queue is empty. Publish some events.</div>';
+        return;
+      }
+
+      // Show newest first
+      el.innerHTML = data.events.slice().reverse().map(item => `
+        <div class="event">
+          <div>
+            <span class="offset">offset ${item.offset}</span><br>
+            <span class="amount">${item.event.amount}</span> 
+            <span class="currency">${item.event.currency}</span>
+          </div>
+          <div class="meta">
+            ${item.event.transfer_id.slice(0, 8)}…<br>
+            ${item.published_at}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    refresh();
+  </script>
+</body>
+</html>
