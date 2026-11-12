@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phase 1 – Transfer Service Visualizer</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #0f172a; color: #e2e8f0; }
+    h1 { color: #38bdf8; }
+    .controls { margin: 20px 0; }
+    button { background: #0284c7; color: white; border: none; padding: 10px 16px; margin-right: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #0369a1; }
+    .stats { background: #1e293b; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
+    .event-list { background: #1e293b; border-radius: 8px; padding: 16px; max-height: 500px; overflow-y: auto; }
+    .event { background: #334155; margin: 8px 0; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px; }
+    .currency { color: #4ade80; font-weight: bold; }
+    .amount { color: #fbbf24; }
+    .id { color: #94a3b8; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1>Phase 1: Transfer Service Visualizer</h1>
+  <p>This shows the <strong>producer</strong> side. Events are created here and (in later phases) will be published to a queue.</p>
+
+  <div class="controls">
+    <button onclick="generateOne()">Generate 1 Transfer</button>
+    <button onclick="generateBatch(5)">Generate 5</button>
+    <button onclick="generateBatch(20)">Generate 20</button>
+    <button onclick="clearAll()">Clear</button>
+  </div>
+
+  <div class="stats">
+    <strong>Total events generated:</strong> <span id="count">0</span>
+  </div>
+
+  <div class="event-list" id="list">
+    <div style="color:#64748b;">No events yet. Click a button above.</div>
+  </div>
+
+  <script>
+    let transfers = [];
+
+    async function generateOne() {
+      const res = await fetch('/transfers', { method: 'POST' });
+      const data = await res.json();
+      transfers.unshift(data.transfer);
+      render();
+    }
+
+    async function generateBatch(n) {
+      const res = await fetch(`/transfers/batch?count=${n}`, { method: 'POST' });
+      const data = await res.json();
+      transfers = [...data.transfers.reverse(), ...transfers];
+      render();
+    }
+
+    function clearAll() {
+      transfers = [];
+      render();
+    }
+
+    function render() {
+      document.getElementById('count').textContent = transfers.length;
+      const list = document.getElementById('list');
+      if (transfers.length === 0) {
+        list.innerHTML = '<div style="color:#64748b;">No events yet. Click a button above.</div>';
+        return;
+      }
+      list.innerHTML = transfers.map(t => `
+        <div class="event">
+          <div class="id">${t.transfer_id}</div>
+          <div><span class="amount">${t.amount}</span> <span class="currency">${t.currency}</span> · ${t.timestamp}</div>
+        </div>
+      `).join('');
+    }
+
+    // Load any existing on page load
+    fetch('/transfers').then(r => r.json()).then(data => {
+      transfers = data.transfers.reverse();
+      render();
+    });
+  </script>
+</body>
+</html>
